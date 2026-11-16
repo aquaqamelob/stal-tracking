@@ -59,3 +59,10 @@ def test_iter_frames_range_returns_right_frames(numbered_video):
 
 def test_iter_frames_all(numbered_video):
     assert [f for f, _ in iter_frames(numbered_video)] == list(range(1, 101))
+
+
+def test_missing_file_lists_videos_in_folder(tmp_path):
+    from stal_tracking.video import probe
+    (tmp_path / "stal_10minut_2.mp4").write_bytes(b"")
+    with pytest.raises(FileNotFoundError, match="stal_10minut_2.mp4"):
+        probe(str(tmp_path / "0" / "stal_10_minut.mp4"))
