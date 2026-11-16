@@ -16,6 +16,10 @@ class Config:
     output_dir: str
     weights_dir: str = "weights"
 
+    # Fragment nagrania: od start_s przez duration_s sekund (None = do końca)
+    start_s: float = 0.0
+    duration_s: float | None = None
+
     # Detekcja – niski próg, żeby drugi etap BYTE widział słabe detekcje.
     detector: str = "yolox-sportsmot"  # yolox-sportsmot | rfdetr-medium | rfdetr-large | yolo
     det_conf: float = 0.05
@@ -58,7 +62,20 @@ class Config:
 
     @property
     def stem(self) -> str:
-        return Path(self.source).stem
+        stem = Path(self.source).stem
+        if self.start_s or self.duration_s is not None:
+            end = "end" if self.duration_s is None else f"{self.start_s + self.duration_s:g}"
+            stem += f"_{self.start_s:g}-{end}s"
+        return stem
+
+    def frame_range(self, fps: float, n_frames: int) -> range:
+        """Numery klatek (od 1, jak w MOT) objęte fragmentem start_s..start_s+duration_s."""
+        first = round(self.start_s * fps) + 1
+        last = n_frames if self.duration_s is None else min(n_frames, first - 1 + round(self.duration_s * fps))
+        if first > last:
+            raise ValueError(f"Pusty fragment: start_s={self.start_s}, duration_s={self.duration_s}, "
+                             f"wideo ma {n_frames / fps:.1f} s")
+        return range(first, last + 1)
 
     def out(self, suffix: str) -> Path:
         p = Path(self.output_dir) / f"{self.stem}{suffix}"
@@ -80,7 +97,7 @@ class Config:
         return hashlib.sha1(payload.encode()).hexdigest()[:8]
 
     # Pola, od których zależy dany etap (cache unieważnia się automatycznie)
-    DETECT_FIELDS = ("source", "detector", "det_conf", "yolox_size", "fp16")
+    DETECT_FIELDS = ("source", "start_s", "duration_s", "detector", "det_conf", "yolox_size", "fp16")
     TRACK_FIELDS = DETECT_FIELDS + (
         "preset", "preset_fps", "track_high", "new_track", "track_buffer_s", "use_reid",
     )

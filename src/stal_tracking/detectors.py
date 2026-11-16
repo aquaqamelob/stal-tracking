@@ -86,25 +86,25 @@ def save_detections(dets: dict[int, np.ndarray], path: Path, n_frames: int) -> N
 
 
 def load_detections(path: Path) -> tuple[dict[int, np.ndarray], int]:
+    """Klatki bez detekcji nie są zapisywane – czytaj przez dets.get(f, EMPTY)."""
     z = np.load(path)
     arr, n = z["dets"], int(z["n_frames"])
-    out = {f: EMPTY for f in range(1, n + 1)}
-    for f in np.unique(arr[:, 0]).astype(int):
-        out[f] = arr[arr[:, 0] == f, 1:]
+    out = {int(f): arr[arr[:, 0] == f, 1:] for f in np.unique(arr[:, 0])}
     return out, n
 
 
-def detect_video(detector: Detector, source: str, cache: Path | None = None) -> dict[int, np.ndarray]:
+def detect_video(detector: Detector, cfg: Config, cache: Path | None = None) -> dict[int, np.ndarray]:
     """Najdroższy etap. Z cache: strojenie trackera/merge'a nie odpala detektora ponownie."""
     if cache is not None and cache.exists():
         print("Detekcje z cache:", cache)
         return load_detections(cache)[0]
 
-    info = probe(source)
+    info = probe(cfg.source)
+    frames = cfg.frame_range(info.fps, info.n_frames)
     dets: dict[int, np.ndarray] = {}
-    for f, frame in tqdm(iter_frames(source), total=info.n_frames, desc="Detekcja"):
+    for f, frame in tqdm(iter_frames(cfg.source, frames), total=len(frames), desc="Detekcja"):
         dets[f] = detector(frame)
-        if f == 100 and not any(len(d) for d in dets.values()):
+        if len(dets) == 100 and not any(len(d) for d in dets.values()):
             raise RuntimeError("0 detekcji osób w 100 klatkach – uruchom diagnose() i sprawdź detektor.")
     if cache is not None:
         save_detections(dets, cache, n_frames=len(dets))

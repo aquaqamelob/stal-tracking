@@ -18,11 +18,14 @@ cfg = Config(
     source="/content/drive/MyDrive/stal/1/stal_5_minut.mp4",
     output_dir="/content/drive/MyDrive/stal/1/out",
     weights_dir="/content/drive/MyDrive/stal/weights",
+    duration_s=60,                     # opcjonalnie: tylko fragment (start_s=... przesuwa początek)
 )
 ensure_weights(cfg)                    # raz: YOLOX + ReID na Drive
 diagnose(cfg, make_detector(cfg))      # opcjonalnie: 60 klatek, sanity check
 ids = track(cfg)                       # {klatka: ndarray (N,5) [x1,y1,x2,y2,id]} + plik MOT
 ```
+
+Fragment ma własne pliki wyjściowe i cache (np. `mecz_0-60s_tracks.txt`), numery klatek są liczone od początku całego nagrania.
 
 Do pandas: `from stal_tracking.mot import to_dataframe; df = to_dataframe(ids)`.
 Aktualizacja kodu: ta sama linijka `pip install` z `--force-reinstall --no-deps`.

@@ -57,11 +57,12 @@ def track_video(cfg: Config, dets: dict[int, np.ndarray], cache: Path | None = N
         return OnlineResult.load(cache)
 
     info = probe(cfg.source)
+    frames = cfg.frame_range(info.fps, info.n_frames)
     reid = reid_available(cfg)
     tracker = make_tracker(cfg, info.fps, reid)
     res = OnlineResult(fps=info.fps, n_frames=0)
 
-    for f, frame in tqdm(iter_frames(cfg.source), total=info.n_frames, desc="Tracking"):
+    for f, frame in tqdm(iter_frames(cfg.source, frames), total=len(frames), desc="Tracking"):
         t = tracker.update(dets.get(f, np.empty((0, 6))), frame=frame)
         res.camera_motion[f] = tracker.camera_motion
         res.n_frames = f
@@ -79,9 +80,11 @@ def track_video(cfg: Config, dets: dict[int, np.ndarray], cache: Path | None = N
 
 def diagnose(cfg: Config, detector: Detector, n_frames: int = 60) -> None:
     """Szybki test: czy są detekcje i czy tracker cokolwiek zwraca (bez ReID)."""
-    tracker = make_tracker(cfg, probe(cfg.source).fps, reid=False)
+    info = probe(cfg.source)
+    start = cfg.frame_range(info.fps, info.n_frames).start
+    tracker = make_tracker(cfg, info.fps, reid=False)
     n_det, n_trk, confs = [], [], []
-    for _, frame in iter_frames(cfg.source, limit=n_frames):
+    for _, frame in iter_frames(cfg.source, range(start, min(start + n_frames, info.n_frames + 1))):
         d = detector(frame)
         n_det.append(len(d))
         n_trk.append(len(tracker.update(d, frame=frame)))

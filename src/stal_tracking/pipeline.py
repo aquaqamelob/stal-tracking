@@ -20,7 +20,7 @@ def track(cfg: Config, force: set[str] = frozenset()) -> mot.PerFrame:
 
     # Detektor ładujemy tylko, gdy faktycznie trzeba liczyć detekcje
     detector = None if det_cache.exists() else make_detector(cfg)
-    dets = detect_video(detector, cfg.source, cache=det_cache)
+    dets = detect_video(detector, cfg, cache=det_cache)
 
     online = track_video(cfg, dets, cache=trk_cache)
     final = postprocess(cfg, online.tracks, online.embeddings, online.fps)

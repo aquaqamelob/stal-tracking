@@ -29,18 +29,26 @@ def probe(path: str) -> VideoInfo:
     return info
 
 
-def iter_frames(path: str, limit: int | None = None) -> Iterator[tuple[int, np.ndarray]]:
-    """Klatki BGR numerowane od 1 (konwencja MOT)."""
+def iter_frames(path: str, frames: range | None = None) -> Iterator[tuple[int, np.ndarray]]:
+    """Klatki BGR numerowane od 1 (konwencja MOT), opcjonalnie tylko z zakresu `frames`."""
     cap = cv2.VideoCapture(path)
     if not cap.isOpened():
         raise RuntimeError(f"Nie mogę otworzyć {path}")
     try:
         f = 0
-        while limit is None or f < limit:
+        if frames is not None and frames.start > 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frames.start - 1)
+            f = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            if f != frames.start - 1:  # kontener nie seekuje dokładnie -> czytamy po kolei
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                f = 0
+        stop = None if frames is None else frames.stop - 1
+        while stop is None or f < stop:
             ok, frame = cap.read()
             if not ok:
                 break
             f += 1
-            yield f, frame
+            if frames is None or f >= frames.start:
+                yield f, frame
     finally:
         cap.release()
