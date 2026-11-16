@@ -42,6 +42,9 @@ class Config:
     merge_max_gap_s: float = 12.0  # 300 klatek @ 25 FPS
     merge_motion_tol: float | None = None  # None = bez bramki ruchu
 
+    # Render (opcjonalny, render())
+    trail_length_s: float = 1.2
+
     # ---- wczytywanie ----
     @classmethod
     def from_yaml(cls, path: str | Path, **overrides) -> "Config":
@@ -81,6 +84,22 @@ class Config:
         p = Path(self.output_dir) / f"{self.stem}{suffix}"
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
+
+    @property
+    def det_cache(self) -> Path:
+        return self.out(f".dets.{self.key(*self.DETECT_FIELDS)}.npz")
+
+    @property
+    def track_cache(self) -> Path:
+        return self.out(f".online.{self.key(*self.TRACK_FIELDS)}.pkl")
+
+    @property
+    def mot_path(self) -> Path:
+        return self.out("_tracks.txt")
+
+    @property
+    def video_path(self) -> Path:
+        return self.out("_tracks.mp4")
 
     @property
     def reid_weights(self) -> Path:

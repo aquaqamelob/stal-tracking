@@ -12,7 +12,7 @@ bez Pythona 3.7, bez `cython_bbox` i bez patchowania `demo.py`.
 !pip install -q "stal-tracking[yolox] @ git+https://github.com/aquaqamelob/stal-tracking.git"
 
 from google.colab import drive; drive.mount('/content/drive')
-from stal_tracking import Config, ensure_weights, make_detector, diagnose, track
+from stal_tracking import Config, ensure_weights, make_detector, diagnose, track, render
 
 cfg = Config(
     source="/content/drive/MyDrive/stal/1/stal_5_minut.mp4",
@@ -23,6 +23,7 @@ cfg = Config(
 ensure_weights(cfg)                    # raz: YOLOX + ReID na Drive
 diagnose(cfg, make_detector(cfg))      # opcjonalnie: 60 klatek, sanity check
 ids = track(cfg)                       # {klatka: ndarray (N,5) [x1,y1,x2,y2,id]} + plik MOT
+render(cfg, ids)                       # opcjonalnie: wideo z ID -> output_dir/<nazwa>_tracks.mp4
 ```
 
 Fragment ma własne pliki wyjściowe i cache (np. `mecz_0-60s_tracks.txt`), numery klatek są liczone od początku całego nagrania.
@@ -54,6 +55,7 @@ src/stal_tracking/
   tracking.py     # ARC-SORT online + embeddingi do merge; diagnose()
   postprocess.py  # interpolacja, split, merge, renumeracja ID
   pipeline.py     # track(): detect -> track -> postprocess -> ID
+  rendering.py    # render(): opcjonalne wideo z ID i śladami
   mot.py          # format MOT, to_dataframe
   weights.py      # pobranie modeli
   cli.py          # stal-track run|diagnose|weights CONFIG
