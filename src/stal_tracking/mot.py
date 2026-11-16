@@ -35,3 +35,11 @@ def save(per_frame: PerFrame, path: str | Path) -> None:
 
 def load(path: str | Path) -> PerFrame:
     return from_lines(Path(path).read_text().splitlines())
+
+
+def to_dataframe(per_frame: PerFrame):
+    """pandas.DataFrame z kolumnami frame, id, x1, y1, x2, y2."""
+    import pandas as pd
+
+    rows = [(f, int(r[4]), *r[:4]) for f in sorted(per_frame) for r in per_frame[f]]
+    return pd.DataFrame(rows, columns=["frame", "id", "x1", "y1", "x2", "y2"])

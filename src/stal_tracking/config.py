@@ -17,8 +17,10 @@ class Config:
     weights_dir: str = "weights"
 
     # Detekcja – niski próg, żeby drugi etap BYTE widział słabe detekcje.
-    detector: str = "rfdetr-medium"  # rfdetr-medium | rfdetr-large | yolo
+    detector: str = "yolox-sportsmot"  # yolox-sportsmot | rfdetr-medium | rfdetr-large | yolo
     det_conf: float = 0.05
+    yolox_size: tuple[int, int] = (800, 1440)  # (h, w) jak w Deep-EIoU; mniejsze = szybciej, gorzej
+    fp16: bool = True
 
     # Tracker – domyślne z presetu; autorzy: obniżanie pogarsza HOTA.
     preset: str = "sportsmot"
@@ -36,8 +38,6 @@ class Config:
     merge_max_gap_s: float = 12.0  # 300 klatek @ 25 FPS
     merge_motion_tol: float | None = None  # None = bez bramki ruchu
 
-    trail_length_s: float = 1.2
-
     # ---- wczytywanie ----
     @classmethod
     def from_yaml(cls, path: str | Path, **overrides) -> "Config":
@@ -47,6 +47,8 @@ class Config:
         unknown = set(data) - known
         if unknown:
             raise ValueError(f"Nieznane klucze w configu: {sorted(unknown)}")
+        if "yolox_size" in data:
+            data["yolox_size"] = tuple(data["yolox_size"])
         return cls(**data)
 
     # ---- pomocnicze ----
@@ -67,6 +69,10 @@ class Config:
     def reid_weights(self) -> Path:
         return Path(self.weights_dir) / "sports_osnet_traced.pt"
 
+    @property
+    def yolox_weights(self) -> Path:
+        return Path(self.weights_dir) / "best_ckpt.pth.tar"
+
     def key(self, *names: str) -> str:
         """Krótki hash wybranych pól – klucz cache, żeby zmiana parametru nie czytała starych wyników."""
         d = asdict(self)
@@ -74,7 +80,7 @@ class Config:
         return hashlib.sha1(payload.encode()).hexdigest()[:8]
 
     # Pola, od których zależy dany etap (cache unieważnia się automatycznie)
-    DETECT_FIELDS = ("source", "detector", "det_conf")
+    DETECT_FIELDS = ("source", "detector", "det_conf", "yolox_size", "fp16")
     TRACK_FIELDS = DETECT_FIELDS + (
         "preset", "preset_fps", "track_high", "new_track", "track_buffer_s", "use_reid",
     )

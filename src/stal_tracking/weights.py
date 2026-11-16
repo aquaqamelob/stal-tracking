@@ -1,5 +1,8 @@
-"""Jednorazowe pobranie OSNet (Deep-EIoU, sports_model.pth.tar-60) i konwersja do TorchScript
-skryptami ARC-SORT z przypiętego commita."""
+"""Jednorazowe pobranie modeli z Deep-EIoU (Google Drive autorów) do cfg.weights_dir:
+
+- best_ckpt.pth.tar        – YOLOX-X trenowany na SportsMOT (detektor zawodników), używany bez konwersji
+- sports_model.pth.tar-60  – OSNet x1.0 ReID trenowany na sporcie -> TorchScript dla ARC-SORT
+"""
 
 from __future__ import annotations
 
@@ -7,7 +10,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-DEEP_EIOU_FOLDER_ID = "1wItcb0yeGaxOS08_G9yRWBTnpVf0vZ2w"  # oficjalny folder z README Deep-EIoU
+from .config import Config
+
+# ID plików z oficjalnego folderu Deep-EIoU (1wItcb0yeGaxOS08_G9yRWBTnpVf0vZ2w)
+DRIVE_FOLDER = "https://drive.google.com/drive/folders/1wItcb0yeGaxOS08_G9yRWBTnpVf0vZ2w"
+YOLOX_FILE_ID = "1834kh10-X0Tu743fgmN7jXPVDKgq4ZqR"
+REID_FILE_ID = "14zzlm1nI9Ws_Il9RYNChwPC7Fsul7xwl"
+
 ARCSORT_REPO = "https://github.com/Athlitix/arcsort.git"
 ARCSORT_COMMIT = "0fe370dbcc0db06e49d4a02757257ad9e0ebfb31"  # z tego commita są też pliki w _vendor/
 
@@ -19,38 +28,42 @@ def _sh(cmd: str, cwd: Path) -> None:
     r.check_returncode()
 
 
-def _checkout_arcsort(dest: Path) -> Path:
-    dest.mkdir(parents=True, exist_ok=True)
-    _sh(f"git init -q && git remote add origin {ARCSORT_REPO} && "
-        f"git fetch -q --depth 1 origin {ARCSORT_COMMIT} && git checkout -q FETCH_HEAD", cwd=dest)
-    return dest
-
-
-def ensure_reid_weights(weights_dir: str | Path) -> Path:
-    weights_dir = Path(weights_dir)
-    out = weights_dir / "sports_osnet_traced.pt"
+def _download(file_id: str, out: Path) -> Path:
     if out.exists():
-        print("Wagi ReID już są:", out)
         return out
+    import gdown
 
-    weights_dir.mkdir(parents=True, exist_ok=True)
-    raw = weights_dir / "sports_model.pth.tar-60"
-    clean = weights_dir / "sports_osnet_clean.pth"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    got = gdown.download(id=file_id, output=str(out), quiet=False)
+    if not got or not out.exists():
+        raise RuntimeError(f"Nie udało się pobrać {out.name} (limit Google Drive?). "
+                           f"Pobierz ręcznie z {DRIVE_FOLDER} do {out.parent}")
+    return out
 
-    if not raw.exists():
-        import gdown
 
-        files = gdown.download_folder(id=DEEP_EIOU_FOLDER_ID, skip_download=True, quiet=True)
-        reid = [f for f in files if f.path.endswith("sports_model.pth.tar-60")]
-        if not reid:
-            raise RuntimeError(
-                "Nie znalazłem sports_model.pth.tar-60. Pobierz ręcznie z "
-                f"https://drive.google.com/drive/folders/{DEEP_EIOU_FOLDER_ID} do {weights_dir}"
-            )
-        gdown.download(id=reid[0].id, output=str(raw), quiet=False)
+def ensure_yolox_weights(cfg: Config) -> Path:
+    return _download(YOLOX_FILE_ID, cfg.yolox_weights)
 
+
+def ensure_reid_weights(cfg: Config) -> Path:
+    out = cfg.reid_weights
+    if out.exists():
+        return out
+    raw = _download(REID_FILE_ID, out.parent / "sports_model.pth.tar-60")
+    clean = out.parent / "sports_osnet_clean.pth"
     with tempfile.TemporaryDirectory() as tmp:
-        repo = _checkout_arcsort(Path(tmp) / "arcsort")
+        repo = Path(tmp) / "arcsort"
+        repo.mkdir()
+        _sh(f"git init -q && git remote add origin {ARCSORT_REPO} && "
+            f"git fetch -q --depth 1 origin {ARCSORT_COMMIT} && git checkout -q FETCH_HEAD", cwd=repo)
         _sh(f'python tools/extract_state_dict.py --input "{raw}" --output "{clean}"', cwd=repo)
         _sh(f'PYTHONPATH=. python tools/convert_osnet_weights.py --input "{clean}" --output "{out}"', cwd=repo)
     return out
+
+
+def ensure_weights(cfg: Config) -> None:
+    """Pobiera tylko to, czego wymaga config (YOLOX gdy detector=yolox-sportsmot, ReID gdy use_reid)."""
+    if cfg.detector == "yolox-sportsmot":
+        print("YOLOX:", ensure_yolox_weights(cfg))
+    if cfg.use_reid:
+        print("ReID:", ensure_reid_weights(cfg))

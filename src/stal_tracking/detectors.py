@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from tqdm.auto import tqdm
 
+from .config import Config
 from .video import iter_frames, probe
 
 Detector = Callable[[np.ndarray], np.ndarray]
@@ -52,18 +53,28 @@ def _yolo(conf: float) -> Detector:
     return create_detector("yolo11x.pt", imgsz=1280, conf_thresh=conf, classes=[0]).detect
 
 
-DETECTORS: dict[str, Callable[[float], Detector]] = {
-    "rfdetr-medium": lambda c: _rfdetr("medium", c),
-    "rfdetr-large": lambda c: _rfdetr("large", c),
-    "yolo": _yolo,
+def _yolox_sportsmot(cfg: Config) -> Detector:
+    from .yolox import YOLOXDetector
+
+    if not cfg.yolox_weights.exists():
+        raise FileNotFoundError(f"Brak {cfg.yolox_weights} – uruchom najpierw ensure_weights(cfg).")
+    return YOLOXDetector(cfg.yolox_weights, conf=cfg.det_conf, size=cfg.yolox_size, fp16=cfg.fp16)
+
+
+DETECTORS: dict[str, Callable[[Config], Detector]] = {
+    "yolox-sportsmot": _yolox_sportsmot,
+    "rfdetr-medium": lambda c: _rfdetr("medium", c.det_conf),
+    "rfdetr-large": lambda c: _rfdetr("large", c.det_conf),
+    "yolo": lambda c: _yolo(c.det_conf),
 }
 
 
-def make_detector(name: str, conf: float) -> Detector:
+def make_detector(cfg: Config) -> Detector:
     try:
-        return DETECTORS[name.lower()](conf)
+        factory = DETECTORS[cfg.detector.lower()]
     except KeyError:
-        raise ValueError(f"Nieznany detektor: {name}. Dostępne: {list(DETECTORS)}") from None
+        raise ValueError(f"Nieznany detektor: {cfg.detector}. Dostępne: {list(DETECTORS)}") from None
+    return factory(cfg)
 
 
 # ---------- etap 1: detekcja całego wideo z cache na dysku ----------

@@ -1,0 +1,11 @@
+__pycache__/
+*.egg-info/
+.venv/
+*.mp4
+*.npz
+*.pkl
+*.pt
+*.pth
+*.pth.tar-*
+weights/
+out/

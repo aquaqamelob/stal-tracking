@@ -1,4 +1,4 @@
-"""stal-track run CONFIG [--set klucz=wartość ...] [--force detect|track] [--no-render]
+"""stal-track run CONFIG [--set klucz=wartość ...] [--force detect|track]
 stal-track diagnose CONFIG
 stal-track weights CONFIG"""
 
@@ -25,21 +25,20 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("config")
     ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VAL")
     ap.add_argument("--force", nargs="*", default=[], choices=["detect", "track"])
-    ap.add_argument("--no-render", action="store_true")
     a = ap.parse_args(argv)
 
     cfg = Config.from_yaml(a.config, **_overrides(a.set))
 
     if a.command == "weights":
-        from .weights import ensure_reid_weights
-        ensure_reid_weights(cfg.weights_dir)
+        from .weights import ensure_weights
+        ensure_weights(cfg)
     elif a.command == "diagnose":
         from .detectors import make_detector
         from .tracking import diagnose
-        diagnose(cfg, make_detector(cfg.detector, cfg.det_conf))
+        diagnose(cfg, make_detector(cfg))
     else:
-        from .pipeline import run
-        run(cfg, force=set(a.force), render_video=not a.no_render)
+        from .pipeline import track
+        track(cfg, force=set(a.force))
 
 
 if __name__ == "__main__":
