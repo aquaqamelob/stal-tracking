@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stal-tracking"
+version = "0.1.0"
+description = "Śledzenie zawodników Stali Rzeszów: RF-DETR + ARC-SORT + offline merge"
+requires-python = ">=3.10"
+dependencies = [
+    "arcsort[reid,viz]==0.1.1",
+    "numpy",
+    "opencv-python",
+    "pyyaml",
+    "tqdm",
+    "loguru",
+]
+
+[project.optional-dependencies]
+rfdetr = ["rfdetr"]
+yolo = ["ultralytics"]   # AGPL-3.0
+weights = ["gdown"]
+dev = ["pytest"]
+
+[project.scripts]
+stal-track = "stal_tracking.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"stal_tracking._vendor" = ["LICENSE-arcsort"]

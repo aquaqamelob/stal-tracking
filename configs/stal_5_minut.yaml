@@ -1,0 +1,9 @@
+# Ścieżki pod Colab + Google Drive. Wszystko inne ma sensowne domyślne w config.py –
+# wpisuj tu tylko to, co zmieniasz.
+source: /content/drive/MyDrive/stal/1/stal_5_minut.mp4
+output_dir: /content/drive/MyDrive/stal/1/out
+weights_dir: /content/drive/MyDrive/stal/weights
+
+detector: rfdetr-medium
+det_conf: 0.05
+merge_thresh: 0.85
